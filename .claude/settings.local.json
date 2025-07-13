@@ -45,7 +45,12 @@
       "mcp__zen__debug",
       "Bash(pip install:*)",
       "Bash(kill:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(cp:*)",
+      "Bash(grep:*)",
+      "Bash(npm run lint)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
