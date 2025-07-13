@@ -36,7 +36,16 @@
       "mcp__serena__insert_after_symbol",
       "mcp__zen__chat",
       "mcp__serena__search_for_pattern",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(rm:*)",
+      "mcp__zen__debug",
+      "Bash(pip install:*)",
+      "Bash(kill:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

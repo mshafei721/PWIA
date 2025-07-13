@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient, Task, SubTask } from '../lib/api';
+import { useTaskWebSocket } from '../hooks/useWebSocket';
+import { TaskUpdateData, ProgressUpdateData } from '../lib/websocket';
 interface TaskDetailPanelProps {
   taskId: string;
 }
@@ -20,6 +22,35 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
   const [currentTaskData, setCurrentTaskData] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [progressMessage, setProgressMessage] = useState<string>('');
+
+  // WebSocket integration for real-time updates
+  const {
+    connectionStatus,
+    isConnected,
+    sendMessage
+  } = useTaskWebSocket({
+    taskId,
+    enabled: true,
+    onTaskUpdate: (data: TaskUpdateData) => {
+      console.log('Task update received:', data);
+      // Update task data in real-time
+      setCurrentTaskData(prev => prev ? {
+        ...prev,
+        ...data,
+        updated_at: data.updated_at
+      } : null);
+    },
+    onProgress: (data: ProgressUpdateData) => {
+      console.log('Progress update received:', data);
+      setProgress(data.progress);
+      setProgressMessage(data.message);
+    },
+    onError: (error) => {
+      console.error('WebSocket error:', error);
+    }
+  });
 
   useEffect(() => {
     const fetchTask = async () => {
@@ -103,10 +134,40 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
 
   return <div className="h-full flex flex-col">
       <div className="p-6 border-b border-border">
-        <h1 className="text-2xl font-bold">{currentTaskData.title}</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold">{currentTaskData.title}</h1>
+          {/* WebSocket Connection Status */}
+          <div className="flex items-center text-sm">
+            <div className={`w-2 h-2 rounded-full mr-2 ${
+              isConnected ? 'bg-green-500' : 'bg-red-500'
+            }`}></div>
+            <span className="text-muted-foreground">
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
         <p className="text-muted-foreground mt-1">
           {currentTaskData.description}
         </p>
+        
+        {/* Progress Bar - shown when progress > 0 */}
+        {progress > 0 && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-sm mb-1">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="text-muted-foreground">{Math.round(progress * 100)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${progress * 100}%` }}
+              ></div>
+            </div>
+            {progressMessage && (
+              <p className="text-sm text-muted-foreground mt-1">{progressMessage}</p>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-6">
         {currentTaskData.subtasks.map(section => <div key={section.id} className="mb-6">
