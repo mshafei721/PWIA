@@ -1,34 +1,47 @@
-# Project-specific files and directories
-memory-bank/
-CLAUDE.md
-PRD.md
-.serena/
-.claude/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Node.js dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Virtual Environment
+venv/
+env/
+ENV/
 
-# Environment variables
+# Environment Variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Build outputs
-dist/
-build/
-
-# IDE and editor files
+# IDEs
 .vscode/
+.idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -37,16 +50,89 @@ build/
 ehthumbs.db
 Thumbs.db
 
-# Python virtual environments
-venv/
-env/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# VM files
-*.qcow2
-*.img
-*.iso
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build
+Frontend/dist/
+Frontend/build/
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# VM artifacts
+sandbox_vm/*.qcow2
+sandbox_vm/*.img
+sandbox_vm/*.iso
+sandbox_vm/logs/
+
+# Workspace outputs (keep structure but ignore task data)
+workspace/*/
+!workspace/.gitkeep
+
+# App memory database files
+app-memory/*.json
+app-memory/*.db
+!app-memory/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Backup files
+*.bak
+*.backup
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,81 @@
+# Core FastAPI and ASGI server
+fastapi[standard]==0.115.0
+uvicorn[standard]==0.24.0
+
+# WebSocket and real-time communication
+websockets==12.0
+python-socketio==5.10.0
+
+# Data validation and serialization
+pydantic==2.5.0
+
+# CLI framework for agent
+typer==0.9.0
+
+# OpenAI API integration
+openai==1.6.1
+
+# Browser automation with Playwright
+playwright==1.40.0
+
+# Database and persistence
+tinydb==4.8.0
+
+# HTTP client for testing and external requests
+httpx==0.25.2
+
+# Form and file handling
+python-multipart==0.0.6
+
+# YAML configuration support
+pyyaml==6.0.1
+
+# Testing framework
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Development and code quality
+ruff==0.1.8
+
+# Environment variable management
+python-dotenv==1.0.0
+
+# Logging utilities
+structlog==23.2.0
+
+# Task scheduling and background jobs
+celery==5.3.4
+
+# Async utilities
+asyncio-mqtt==0.13.0
+
+# File system utilities
+watchdog==3.0.0
+
+# JSON Web Token handling
+pyjwt==2.8.0
+
+# Date and time utilities
+python-dateutil==2.8.2
+
+# Progress bars and CLI utilities
+rich==13.7.0
+click==8.1.7
+
+# Image processing (for VM screenshots)
+pillow==10.1.0
+
+# Crypto utilities
+cryptography==41.0.8
+
+# Memory monitoring
+psutil==5.9.6
+
+# SQL toolkit (for future database needs)
+sqlalchemy==2.0.23
+
+# Validation and parsing utilities
+validators==0.22.0
+
+# Async context managers
+contextlib2==21.6.0

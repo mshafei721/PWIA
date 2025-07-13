@@ -19,7 +19,15 @@
       "WebFetch(domain:docs.copilotkit.ai)",
       "WebFetch(domain:docs.ag-ui.com)",
       "Bash(mkdir:*)",
-      "mcp__serena__prepare_for_new_conversation"
+      "mcp__serena__prepare_for_new_conversation",
+      "mcp__serena__read_memory",
+      "mcp__zen__thinkdeep",
+      "mcp__zen__planner",
+      "mcp__zen__consensus",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(touch:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }
