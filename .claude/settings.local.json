@@ -27,7 +27,13 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "Bash(touch:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "mcp__serena__check_onboarding_performed",
+      "mcp__serena__find_file",
+      "Bash(python:*)",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__find_symbol",
+      "mcp__serena__insert_after_symbol"
     ],
     "deny": []
   }

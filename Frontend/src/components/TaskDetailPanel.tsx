@@ -1,14 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiClient, Task, SubTask } from '../lib/api';
 interface TaskDetailPanelProps {
   taskId: string;
 }
-interface SubTask {
-  id: string;
-  title: string;
-  completed: boolean;
-  description?: string;
-  file?: string;
-}
+
 export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
   taskId
 }) => {
@@ -22,45 +17,32 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
       [sectionId]: !prev[sectionId]
     }));
   };
-  // Task data for the "Update Teaching Plans" task
-  const taskData = {
-    title: 'Update Teaching Plans Using Latest Free Resources',
-    description: 'Create updated Design and Analysis of Algorithms teaching report with 14-week plan',
-    subtasks: [{
-      id: 'design_analysis',
-      title: 'Knowledge recalled(2)',
-      subtasks: [{
-        id: 'create_report',
-        title: 'Creating the updated Design and Analysis of Algorithms report.',
-        completed: false
-      }, {
-        id: 'creating_file',
-        title: 'Creating file',
-        description: 'Updated_Design_and_Analysis_of_Algorithms_Report.md',
-        completed: true,
-        file: 'Updated_Design_and_Analysis_of_Algorithms_Report.md'
-      }, {
-        id: 'marking_complete',
-        title: 'Marking Design and Analysis of Algorithms report creation as complete.',
-        completed: true
-      }, {
-        id: 'editing_file',
-        title: 'Editing file',
-        description: 'todo.md',
-        completed: true,
-        file: 'todo.md'
-      }]
-    }, {
-      id: 'reports',
-      title: 'Deliver final updated reports to user',
-      subtasks: [{
-        id: 'knowledge_recalled',
-        title: 'Knowledge recalled(4)',
-        completed: false
-      }]
-    }]
-  };
-  const [currentTaskData] = useState(taskData);
+  const [currentTaskData, setCurrentTaskData] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTask = async () => {
+      try {
+        setLoading(true);
+        const task = await apiClient.getTask(taskId);
+        setCurrentTaskData(task);
+        
+        // Initialize expanded sections based on the actual task data
+        const initialExpanded: Record<string, boolean> = {};
+        task.subtasks.forEach((section, index) => {
+          initialExpanded[section.id] = index === 0; // Expand first section by default
+        });
+        setExpandedSections(initialExpanded);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch task');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTask();
+  }, [taskId]);
   const renderSubtask = (subtask: SubTask) => {
     return <div key={subtask.id} className="flex items-start mb-3 ml-6">
         <div className="mr-3 mt-0.5">
@@ -86,6 +68,39 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
         </div>
       </div>;
   };
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <p className="mt-2 text-muted-foreground">Loading task...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <div className="text-red-500 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <p className="font-medium">Error loading task</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentTaskData) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <p className="text-muted-foreground">Task not found</p>
+      </div>
+    );
+  }
+
   return <div className="h-full flex flex-col">
       <div className="p-6 border-b border-border">
         <h1 className="text-2xl font-bold">{currentTaskData.title}</h1>
