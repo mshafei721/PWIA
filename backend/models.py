@@ -77,6 +77,31 @@ class MessageType(str, Enum):
     TOOL_CALL = "tool_call"
     ERROR = "error"
 
+class WebSocketEventType(str, Enum):
+    """WebSocket event types for real-time communication"""
+    # Basic WebSocket events
+    CONNECTION_ESTABLISHED = "connection_established"
+    CONNECTION_CLOSED = "connection_closed"
+    HEARTBEAT = "heartbeat"
+    
+    # Task-related events
+    TASK_STARTED = "task_started"
+    TASK_UPDATED = "task_updated"
+    TASK_COMPLETED = "task_completed"
+    TASK_FAILED = "task_failed"
+    TASK_PAUSED = "task_paused"
+    
+    # Agent communication events (AG-UI Protocol foundation)
+    MESSAGE_DELTA = "message.delta"
+    TOOL_CALL_START = "tool_call.start"
+    TOOL_CALL_END = "tool_call.end"
+    STATE_PATCH = "state.patch"
+    AGENT_STATUS_CHANGE = "agent_status_change"
+    
+    # Progress events
+    PROGRESS_UPDATE = "progress_update"
+    CONFIDENCE_UPDATE = "confidence_update"
+
 class Message(BaseModel):
     """Message model for chat communication"""
     id: str
@@ -156,3 +181,35 @@ class TaskListResponse(BaseModel):
     message: str
     tasks: List[Task] = []
     total: int = 0
+
+# WebSocket Models
+
+class WebSocketMessage(BaseModel):
+    """WebSocket message model for real-time communication"""
+    event_type: WebSocketEventType
+    task_id: str
+    data: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    client_id: Optional[str] = None
+    
+    model_config = {"json_schema_extra": {
+            "example": {
+                "event_type": "task_updated",
+                "task_id": "task_001",
+                "data": {
+                    "status": "in_progress",
+                    "confidence": 0.85,
+                    "message": "Processing document extraction..."
+                },
+                "timestamp": "2024-01-13T10:30:00Z",
+                "client_id": "client_123"
+            }}
+        }
+
+class ConnectionInfo(BaseModel):
+    """Information about a WebSocket connection"""
+    client_id: str
+    task_id: str
+    connected_at: datetime = Field(default_factory=datetime.utcnow)
+    last_heartbeat: datetime = Field(default_factory=datetime.utcnow)
+    user_agent: Optional[str] = None
