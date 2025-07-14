@@ -50,7 +50,12 @@
       "Bash(grep:*)",
       "Bash(npm run lint)",
       "Bash(timeout 10 npm run dev:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(source:*)",
+      "Bash(bash:*)",
+      "mcp__memory__search_nodes",
+      "mcp__memory__read_graph",
+      "mcp__memory__create_entities"
     ],
     "deny": []
   }

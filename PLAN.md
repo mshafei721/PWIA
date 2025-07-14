@@ -56,12 +56,72 @@ PWIA/
 - [ ] Prompt: "Implement agent/confidence.py with scoring system (0-100) and completion thresholds"
 - [ ] Prompt: "Create agent/utils.py with logging, error handling, and retry logic"
 
-### Day 5: Browser & Web Automation
-- [ ] Prompt: "Implement agent/browser.py with Playwright setup for both headless and headful modes"
-- [ ] Prompt: "Create agent/crawler.py with robots.txt compliance, rate limiting, and URL queue management"
-- [ ] Prompt: "Implement agent/scraper.py for structured data extraction with CSS/XPath selectors"
-- [ ] Prompt: "Create agent/memory.py using TinyDB for persistent agent state in app-memory/"
-- [ ] Prompt: "Write browser automation tests in tests/agent/test_browser.py"
+### Day 5: Browser & Web Automation - DETAILED IMPLEMENTATION PLAN
+
+#### Phase 1: Environment Setup & Foundation (Steps 1-8)
+**Environment Validation & Dependencies**
+- [ ] Prompt: "Update requirements.txt to include browser automation dependencies: playwright>=1.40.0, tinydb>=4.8.0, aiofiles>=23.0.0, robotparser>=1.0.0"
+- [ ] Prompt: "Create tests/agent/test_environment.py with pytest test_playwright_installation() that verifies Playwright can launch Chrome browser"
+- [ ] Prompt: "Create tests/agent/test_memory_foundation.py with test_tinydb_basic_operations() for database create/read/write/delete operations"
+- [ ] Prompt: "Implement agent/memory.py with AgentMemory class using TinyDB for basic CRUD operations on agent state"
+
+**Memory System Foundation**
+- [ ] Prompt: "Create Pydantic models in agent/memory.py: CrawlState, VisitedURL, ExtractedData, AgentSession with proper validation"
+- [ ] Prompt: "Implement AgentMemory.save_crawl_state(), load_crawl_state(), get_visited_urls() methods with async operations"
+- [ ] Prompt: "Write tests in test_memory_foundation.py covering memory persistence, concurrent access, and error handling"
+- [ ] Prompt: "Create app-memory/ directory structure with agent_crawl.json, visited_urls.json, extracted_data.json files"
+
+#### Phase 2: Browser Management & Core Automation (Steps 9-16)
+**Browser Manager Implementation**
+- [ ] Prompt: "Create agent/browser.py with BrowserManager class supporting both headless and headful Playwright configurations"
+- [ ] Prompt: "Implement BrowserManager.launch_browser(), close_browser(), get_page() methods with proper resource cleanup"
+- [ ] Prompt: "Add browser session management with context isolation and cookie/storage persistence"
+- [ ] Prompt: "Write tests/agent/test_browser_manager.py with test_browser_launch_headless(), test_browser_launch_headful(), test_resource_cleanup()"
+
+**Web Crawler Implementation**  
+- [ ] Prompt: "Create agent/crawler.py with WebCrawler class implementing robots.txt parsing and compliance checking"
+- [ ] Prompt: "Implement WebCrawler.crawl_url(), queue_urls(), check_robots_allowed() with rate limiting and delay management"
+- [ ] Prompt: "Add URL queue management with priority handling and duplicate detection using memory persistence"
+- [ ] Prompt: "Write tests/agent/test_crawler.py covering robots.txt compliance, rate limiting, and queue management"
+
+#### Phase 3: Data Extraction & Processing (Steps 17-24)
+**Data Scraper Implementation**
+- [ ] Prompt: "Create agent/scraper.py with DataScraper class supporting CSS selectors, XPath, and BeautifulSoup extraction"
+- [ ] Prompt: "Implement DataScraper.extract_text(), extract_links(), extract_structured_data() with multiple selector strategies"
+- [ ] Prompt: "Add data cleaning and validation methods with confidence scoring integration"
+- [ ] Prompt: "Write tests/agent/test_scraper.py covering all extraction methods, edge cases, and malformed HTML handling"
+
+**Integration Layer Development**
+- [ ] Prompt: "Create agent/browser_automation.py integrating BrowserManager, WebCrawler, and DataScraper classes"
+- [ ] Prompt: "Implement BrowserAutomation.automated_crawl() orchestrating full crawl workflow with error recovery"
+- [ ] Prompt: "Add WebSocket status broadcasting for real-time browser operation updates"
+- [ ] Prompt: "Write tests/agent/test_browser_automation.py for end-to-end workflow testing"
+
+#### Phase 4: System Integration & Optimization (Steps 25-32)
+**Agent Core Integration**
+- [ ] Prompt: "Update agent/main.py to include browser automation commands: crawl, extract, browser-status"
+- [ ] Prompt: "Integrate browser automation with agent/planner.py for task decomposition into crawl subtasks"
+- [ ] Prompt: "Add browser operation confidence scoring to agent/confidence.py for extraction quality assessment"
+- [ ] Prompt: "Update agent/utils.py with browser-specific logging and error handling utilities"
+
+**WebSocket Integration**
+- [ ] Prompt: "Update backend/websocket_manager.py to handle browser status events: browser.started, page.loaded, data.extracted"
+- [ ] Prompt: "Add browser event broadcasting to backend/event_bus.py for real-time frontend updates"
+- [ ] Prompt: "Create browser status models in backend/models.py: BrowserStatus, CrawlProgress, ExtractionResult"
+- [ ] Prompt: "Write tests/backend/test_browser_websocket.py for real-time browser communication"
+
+#### Phase 5: Validation & Documentation (Steps 33-40)
+**Comprehensive Testing**
+- [ ] Prompt: "Create tests/agent/test_browser_integration.py with full system tests for complete crawl workflows"
+- [ ] Prompt: "Add performance tests in tests/agent/test_browser_performance.py measuring crawl speed and memory usage"
+- [ ] Prompt: "Implement error recovery tests in tests/agent/test_browser_resilience.py for network failures and browser crashes"
+- [ ] Prompt: "Create tests/e2e/test_browser_automation_e2e.py for end-to-end user workflow validation"
+
+**Documentation & Optimization**
+- [ ] Prompt: "Update README.md with browser automation setup instructions and usage examples"
+- [ ] Prompt: "Create docs/browser_automation.md with architecture overview and component integration guide"
+- [ ] Prompt: "Add configuration examples in config/ for different crawling scenarios and browser settings"
+- [ ] Prompt: "Perform final validation: run all 78+ existing tests plus new browser tests to ensure no regressions"
 
 ### Day 6: Output & Memory Systems
 - [ ] Prompt: "Create agent/output_writer.py supporting multiple export formats (MD, CSV, ZIP) in workspace/"
