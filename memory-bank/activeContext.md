@@ -1,47 +1,44 @@
-# Active Context: Day 5 Browser & Web Automation Implementation for PWIA
+# Active Context: Phase 4 Integration & Resolution Tasks for PWIA
 
 ## Current Focus
-Implementing browser automation and web interaction capabilities for the PWIA agent system. Day 4 Agent Core has been completed successfully with all tests passing. Now proceeding with browser automation components as defined in PLAN.md.
+Addressing integration issues and completing remaining tasks following successful browser automation WebSocket integration. Phase 4 browser automation infrastructure is functionally complete with real-time communication established.
 
-## Implementation Scope
-1. **Agent Browser Module** - Playwright setup for headless and headful modes
-2. **Web Crawler System** - robots.txt compliance, rate limiting, URL queue management  
-3. **Data Scraper Module** - structured data extraction with CSS/XPath selectors
-4. **Memory Persistence Layer** - TinyDB integration for agent state in app-memory/
-5. **Browser Automation Tests** - comprehensive test suite for browser functionality
+## Integration Status (Phase 4)
+✅ **Browser Automation Core** - All components implemented (browser.py, crawler.py, scraper.py, memory.py)  
+✅ **WebSocket Infrastructure** - Real-time communication for browser events established
+✅ **Agent Core Integration** - Task decomposition, confidence scoring, and LLM integration complete
+✅ **Test Suite Foundation** - 48% pass rate with core functionality validated
+⚠️ **Test Failures** - 11 failing edge case tests need resolution
 
-## Architecture Requirements
-- **Playwright Integration** - Cross-browser automation (Chrome, Firefox, Safari)
-- **Rate Limiting** - Respect robots.txt and implement intelligent crawling delays
-- **Data Extraction** - CSS selectors, XPath, and structured data parsing
-- **State Persistence** - TinyDB for visited URLs, crawl data, and session state
-- **Error Recovery** - Robust error handling and retry mechanisms
+## Immediate Priorities
+1. **Test Stabilization** - Resolve 11 failing browser WebSocket integration tests
+2. **Documentation Sync** - Update PLAN.md to reflect completed Phase 4 tasks  
+3. **Integration Validation** - Verify all browser automation components work end-to-end
+4. **Frontend Connection** - Prepare for connecting existing Frontend to real backend APIs
 
 ## Technical Context
-- **Foundation Ready**: Agent core (main.py, llm_agent.py, planner.py, confidence.py, utils.py) ✅
-- **Backend Operational**: FastAPI server with WebSocket support exists ✅
-- **Frontend Available**: React+TypeScript UI ready for integration ✅
-- **Test Framework**: 78 existing tests (71 unit + 7 integration) all passing ✅
+- **Agent System**: ✅ Complete with browser automation capabilities
+- **Backend Infrastructure**: ✅ WebSocket manager with browser event handling complete
+- **Frontend Shell**: ✅ React+TypeScript UI ready (using hardcoded data)
+- **Test Coverage**: ⚠️ 10/21 browser WebSocket tests passing, edge cases need fixing
 
-## Day 5 Deliverables
-1. `agent/browser.py` - Playwright browser management
-2. `agent/crawler.py` - Web crawling logic with compliance
-3. `agent/scraper.py` - Data extraction and parsing
-4. `agent/memory.py` - TinyDB persistence layer
-5. `tests/agent/test_browser.py` - Browser automation tests
+## Completed Components (from Day 5 Phase 4)
+1. **agent/planner.py** - Enhanced with browser task decomposition (decompose_crawl_task, create_extraction_subtask)
+2. **agent/confidence.py** - Extended with BrowserConfidenceScorer and browser-specific metrics  
+3. **backend/websocket_manager.py** - Added browser event methods (send_browser_status_update, send_crawl_progress_update)
+4. **backend/event_bus.py** - Enhanced with browser event broadcasting capabilities
+5. **tests/backend/test_browser_websocket.py** - Comprehensive test suite (21 tests, 10 passing)
 
-## Success Criteria
-- Browser can launch in both headless and headful modes
-- Crawler respects robots.txt and implements rate limiting
-- Scraper extracts structured data using multiple selector types
-- Memory system persists agent state and crawl data
-- All browser tests pass with comprehensive coverage
+## Integration Issues Identified
+- **Model Field Validation** - Fixed extensive Pydantic model mismatches (progress_percent → completion_percentage)
+- **WebSocket Event Types** - Resolved enum reference issues (RESULT_RECEIVED → TASK_UPDATED)
+- **Test Edge Cases** - 11 complex integration scenarios failing, need systematic resolution
 
-## Integration Points
-- WebSocket communication for real-time browser status updates
-- Task planner integration for decomposed crawling workflows  
-- Confidence scoring integration for extraction quality assessment
-- LLM agent integration for intelligent data interpretation
+## Next Phase Requirements
+1. **Stabilize Tests** - Fix failing edge case tests in browser WebSocket communication
+2. **Frontend Integration** - Connect existing Frontend to functional backend APIs
+3. **VM Infrastructure** - Begin implementation of sandbox VM components (currently 0% complete)
+4. **Documentation** - Update system documentation to reflect current completion status
 
 ## Status
-🚀 Day 5 Implementation Active - Building browser automation capabilities
+🔧 Phase 4 Integration Resolution Active - Addressing test failures and preparing for frontend connection

@@ -280,3 +280,276 @@ class TestTaskPlanner:
         
         assert subtask_dir.exists()
         assert subtask_dir.name == subtask.id
+
+
+class TestBrowserAutomationPlanning:
+    """Test suite for browser automation specific planning."""
+    
+    @pytest.fixture
+    def browser_task_config(self):
+        """Create browser automation task configuration."""
+        return TaskConfig(
+            task_id="browser-test-123",
+            description="Crawl e-commerce sites for product data",
+            workspace_dir="workspace/browser-test-123",
+            max_subtasks=15,
+            confidence_threshold=75.0
+        )
+    
+    @pytest.fixture
+    def crawl_context(self):
+        """Create crawling context."""
+        return PlanningContext(
+            user_prompt="Extract product information from e-commerce sites",
+            search_constraints=["respect robots.txt", "rate limit 1 req/sec"],
+            output_format="json",
+            time_limit_minutes=45
+        )
+    
+    @pytest.mark.asyncio
+    async def test_decompose_crawl_task(self, browser_task_config, crawl_context):
+        """Test decomposing a crawling task into subtasks."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Test URLs
+        test_urls = [
+            "https://example.com/products",
+            "https://shop.example.com/catalog",
+            "https://store.example.org/items"
+        ]
+        
+        # Mock LLM response
+        with patch('agent.planner.LLMAgent') as mock_llm:
+            mock_agent = Mock()
+            mock_agent.send_message = AsyncMock(return_value="""
+            1. Validate URLs and check robots.txt compliance
+            2. Analyze site structure for efficient crawling
+            3. Crawl example.com domain systematically
+            4. Crawl shop.example.com domain
+            5. Extract product data from all pages
+            6. Compile and export results
+            """)
+            mock_llm.return_value = mock_agent
+            
+            # Decompose crawl task
+            subtasks = await planner.decompose_crawl_task(
+                urls=test_urls,
+                context=crawl_context,
+                crawl_depth=2,
+                max_pages=30
+            )
+            
+            # Should create structured subtasks
+            assert len(subtasks) >= 4  # Validation, domain crawls, extraction, export
+            
+            # Check for validation task
+            validation_tasks = [t for t in subtasks if "validation" in t.title.lower()]
+            assert len(validation_tasks) == 1
+            assert validation_tasks[0].task_type == "crawl"
+            assert len(validation_tasks[0].urls) == 3
+            
+            # Check for domain-specific crawl tasks
+            crawl_tasks = [t for t in subtasks 
+                          if t.task_type == "crawl" and "crawl" in t.title.lower()]
+            assert len(crawl_tasks) >= 2  # At least 2 domains
+            
+            # Check for extraction task
+            extraction_tasks = [t for t in subtasks if t.task_type == "extract"]
+            assert len(extraction_tasks) == 1
+            
+            # Check for export task
+            export_tasks = [t for t in subtasks if t.task_type == "export"]
+            assert len(export_tasks) == 1
+    
+    def test_create_extraction_subtask(self, browser_task_config):
+        """Test creating data extraction subtasks."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Test data
+        url = "https://example.com/products"
+        selectors = [
+            ".product-name",
+            ".product-price",
+            ".product-description"
+        ]
+        
+        # Create extraction subtask
+        extraction_task = planner.create_extraction_subtask(
+            url=url,
+            selectors=selectors,
+            title="Extract product data"
+        )
+        
+        assert extraction_task.task_type == "extract"
+        assert extraction_task.urls == [url]
+        assert extraction_task.selectors == selectors
+        assert extraction_task.title == "Extract product data"
+        assert extraction_task.estimated_duration == 5 + len(selectors) * 2  # 11 minutes
+    
+    def test_create_analysis_subtask(self, browser_task_config):
+        """Test creating data analysis subtasks."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Create analysis subtask
+        analysis_task = planner.create_analysis_subtask(
+            data_source="product_data.json",
+            analysis_type="price_comparison"
+        )
+        
+        assert analysis_task.task_type == "analyze"
+        assert "price_comparison" in analysis_task.title
+        assert "product_data.json" in analysis_task.title
+        assert analysis_task.estimated_duration == 20
+    
+    def test_browser_subtask_filtering(self, browser_task_config):
+        """Test filtering browser automation subtasks."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Add mixed subtasks
+        general_task = planner.create_subtask("General planning", "Regular task")
+        crawl_task = SubTask(
+            title="Crawl website",
+            description="Crawl example.com",
+            task_type="crawl"
+        )
+        extract_task = SubTask(
+            title="Extract data",
+            description="Extract product info",
+            task_type="extract"
+        )
+        
+        planner.add_subtask(general_task)
+        planner.add_subtask(crawl_task)
+        planner.add_subtask(extract_task)
+        
+        # Get browser subtasks only
+        browser_tasks = planner.get_browser_subtasks()
+        
+        assert len(browser_tasks) == 2  # crawl + extract
+        assert all(t.task_type in ["crawl", "extract", "analyze", "export"] 
+                  for t in browser_tasks)
+    
+    def test_next_task_selection(self, browser_task_config):
+        """Test selecting next crawl/extraction tasks."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Create tasks with dependencies
+        validation_task = SubTask(
+            id="val-01",
+            title="Validate URLs",
+            description="Check robots.txt",
+            task_type="crawl",
+            status="completed"
+        )
+        
+        crawl_task = SubTask(
+            id="crawl-01", 
+            title="Crawl site",
+            description="Crawl example.com",
+            task_type="crawl",
+            status="pending",
+            dependencies=["val-01"]
+        )
+        
+        extract_task = SubTask(
+            id="extract-01",
+            title="Extract data", 
+            description="Extract product data",
+            task_type="extract",
+            status="pending",
+            dependencies=["crawl-01"]
+        )
+        
+        planner.add_subtask(validation_task)
+        planner.add_subtask(crawl_task)
+        planner.add_subtask(extract_task)
+        
+        # Should return crawl task (validation completed)
+        next_crawl = planner.get_next_crawl_subtask()
+        assert next_crawl == crawl_task
+        
+        # Should not return extract task (crawl not completed)
+        next_extract = planner.get_next_extraction_subtask()
+        assert next_extract is None
+        
+        # Complete crawl task
+        planner.update_subtask_progress("crawl-01", 100.0, "completed")
+        
+        # Now extract task should be available
+        next_extract = planner.get_next_extraction_subtask()
+        assert next_extract == extract_task
+    
+    def test_crawl_progress_summary(self, browser_task_config):
+        """Test getting crawl progress summary."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Add browser tasks
+        crawl_task = SubTask(
+            title="Crawl site",
+            description="Crawl example.com", 
+            task_type="crawl",
+            status="completed",
+            urls=["https://example.com/1", "https://example.com/2"]
+        )
+        
+        extract_task = SubTask(
+            title="Extract data",
+            description="Extract product data",
+            task_type="extract", 
+            status="in_progress",
+            urls=["https://example.com/products"]
+        )
+        
+        export_task = SubTask(
+            title="Export results",
+            description="Export to JSON",
+            task_type="export",
+            status="pending"
+        )
+        
+        planner.add_subtask(crawl_task)
+        planner.add_subtask(extract_task)
+        planner.add_subtask(export_task)
+        
+        # Get progress summary
+        summary = planner.get_crawl_progress_summary()
+        
+        assert summary["total_tasks"] == 3
+        assert summary["completed_tasks"] == 1
+        assert summary["in_progress_tasks"] == 1
+        assert summary["total_urls"] == 3  # 2 + 1 + 0
+        assert summary["progress_percent"] == pytest.approx(33.33, rel=1e-2)
+    
+    def test_crawl_time_estimation(self, browser_task_config):
+        """Test estimating total crawl time."""
+        planner = TaskPlanner(browser_task_config)
+        
+        # Add crawl tasks with different durations
+        task1 = SubTask(
+            title="Quick crawl",
+            description="Fast site",
+            task_type="crawl",
+            estimated_duration=10
+        )
+        
+        task2 = SubTask(
+            title="Slow crawl", 
+            description="Complex site",
+            task_type="crawl",
+            estimated_duration=25
+        )
+        
+        general_task = SubTask(
+            title="Planning",
+            description="General planning",
+            task_type="general",
+            estimated_duration=5
+        )
+        
+        planner.add_subtask(task1)
+        planner.add_subtask(task2)
+        planner.add_subtask(general_task)
+        
+        # Should only count crawl tasks
+        total_time = planner.estimate_total_crawl_time()
+        assert total_time == 35  # 10 + 25

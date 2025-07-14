@@ -3,7 +3,7 @@ import json
 import statistics
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, Field
 
 
@@ -29,6 +29,26 @@ class ScoreFactors(BaseModel):
     time_efficiency: float = Field(ge=0.0, le=2.0)    # 0-2: actual/estimated time
     output_quality: float = Field(ge=0.0, le=1.0)     # 0-1: quality assessment
     uncertainty_level: float = Field(ge=0.0, le=1.0)  # 0-1: agent uncertainty
+
+
+class BrowserScoreFactors(BaseModel):
+    """Browser automation specific confidence factors."""
+    # Core factors (inherited from ScoreFactors)
+    task_completion: float = Field(ge=0.0, le=1.0)
+    error_rate: float = Field(ge=0.0, le=1.0)
+    time_efficiency: float = Field(ge=0.0, le=2.0)
+    output_quality: float = Field(ge=0.0, le=1.0)
+    uncertainty_level: float = Field(ge=0.0, le=1.0)
+    
+    # Browser-specific factors
+    page_load_success_rate: float = Field(ge=0.0, le=1.0)    # % of pages loaded successfully
+    robots_txt_compliance: float = Field(ge=0.0, le=1.0)     # % compliance with robots.txt
+    data_extraction_accuracy: float = Field(ge=0.0, le=1.0)  # % of expected data extracted
+    crawl_depth_efficiency: float = Field(ge=0.0, le=1.0)    # efficiency vs planned depth
+    rate_limit_adherence: float = Field(ge=0.0, le=1.0)      # adherence to rate limits
+    structured_data_quality: float = Field(ge=0.0, le=1.0)   # quality of extracted structured data
+    browser_stability: float = Field(ge=0.0, le=1.0)         # browser crash/error frequency
+    network_resilience: float = Field(ge=0.0, le=1.0)        # handling of network issues
 
 
 class ConfidenceReport(BaseModel):
@@ -297,3 +317,268 @@ class ConfidenceScorer:
         self.current_score = 100.0
         self.score_history = []
         self.last_updated = None
+
+
+class BrowserConfidenceScorer(ConfidenceScorer):
+    """Browser automation specific confidence scorer."""
+    
+    def __init__(self, config: ConfidenceConfig):
+        """Initialize browser confidence scorer with enhanced weights."""
+        # Adjust weights for browser automation
+        browser_weights = {
+            "task_completion": 0.25,           # Core task progress
+            "error_rate": 0.15,               # General errors
+            "time_efficiency": 0.15,          # Time management
+            "output_quality": 0.15,           # General output quality
+            "uncertainty_level": 0.10,        # Agent uncertainty
+            "page_load_success": 0.05,        # Browser-specific: page loading
+            "robots_compliance": 0.05,        # Browser-specific: robots.txt
+            "extraction_accuracy": 0.10       # Browser-specific: data extraction
+        }
+        
+        config.weights = browser_weights
+        super().__init__(config)
+        
+        # Browser-specific tracking
+        self.crawl_stats = {
+            "total_pages_attempted": 0,
+            "pages_loaded_successfully": 0,
+            "robots_violations": 0,
+            "extraction_attempts": 0,
+            "successful_extractions": 0,
+            "browser_crashes": 0,
+            "network_errors": 0,
+            "rate_limit_violations": 0
+        }
+    
+    def calculate_browser_score(self, factors: BrowserScoreFactors) -> float:
+        """Calculate confidence score with browser-specific factors."""
+        weights = self.config.weights
+        
+        # Core score calculation
+        core_score = (
+            factors.task_completion * weights["task_completion"] +
+            (1.0 - factors.error_rate) * weights["error_rate"] +
+            min(factors.time_efficiency, 1.0) * weights["time_efficiency"] +
+            factors.output_quality * weights["output_quality"] +
+            (1.0 - factors.uncertainty_level) * weights["uncertainty_level"]
+        )
+        
+        # Browser-specific score components
+        browser_score = (
+            factors.page_load_success_rate * weights.get("page_load_success", 0.05) +
+            factors.robots_txt_compliance * weights.get("robots_compliance", 0.05) +
+            factors.data_extraction_accuracy * weights.get("extraction_accuracy", 0.10)
+        )
+        
+        total_score = (core_score + browser_score) * 100
+        return max(0.0, min(100.0, total_score))
+    
+    def update_browser_confidence(self, factors: BrowserScoreFactors):
+        """Update confidence score with browser-specific factors."""
+        new_score = self.calculate_browser_score(factors)
+        
+        # Apply momentum
+        if self.score_history:
+            momentum_factor = 0.7
+            self.current_score = (new_score * momentum_factor + 
+                                self.current_score * (1 - momentum_factor))
+        else:
+            self.current_score = new_score
+        
+        # Record in history with browser factors
+        self.score_history.append({
+            "timestamp": datetime.now().isoformat(),
+            "score": self.current_score,
+            "factors": factors.model_dump(),
+            "type": "browser_automation"
+        })
+        
+        self.last_updated = datetime.now()
+        
+        # Update crawl stats
+        self._update_crawl_statistics(factors)
+        
+        # Limit history size
+        if len(self.score_history) > 100:
+            self.score_history = self.score_history[-100:]
+    
+    def _update_crawl_statistics(self, factors: BrowserScoreFactors):
+        """Update internal crawl statistics for trending analysis."""
+        # This would be called with real-time data during crawling
+        # For now, we estimate based on factors
+        
+        if hasattr(factors, 'pages_processed'):
+            # If we have real metrics, use them
+            self.crawl_stats["total_pages_attempted"] += getattr(factors, 'pages_processed', 1)
+            self.crawl_stats["pages_loaded_successfully"] += int(
+                getattr(factors, 'pages_processed', 1) * factors.page_load_success_rate
+            )
+        
+        # Track extraction performance
+        self.crawl_stats["extraction_attempts"] += 1
+        if factors.data_extraction_accuracy > 0.8:
+            self.crawl_stats["successful_extractions"] += 1
+        
+        # Track compliance issues
+        if factors.robots_txt_compliance < 1.0:
+            self.crawl_stats["robots_violations"] += 1
+        
+        if factors.rate_limit_adherence < 1.0:
+            self.crawl_stats["rate_limit_violations"] += 1
+        
+        if factors.browser_stability < 0.9:
+            self.crawl_stats["browser_crashes"] += 1
+        
+        if factors.network_resilience < 0.9:
+            self.crawl_stats["network_errors"] += 1
+    
+    def get_browser_recommendations(self) -> List[str]:
+        """Get browser automation specific recommendations."""
+        recommendations = []
+        
+        if not self.score_history:
+            return ["Initialize browser automation monitoring"]
+        
+        latest = self.score_history[-1]
+        if latest.get("type") != "browser_automation":
+            return ["No browser automation data available"]
+        
+        factors = BrowserScoreFactors(**latest["factors"])
+        
+        # Page loading issues
+        if factors.page_load_success_rate < 0.8:
+            recommendations.append("Check network connectivity and increase page load timeouts")
+        
+        # Robots.txt compliance issues
+        if factors.robots_txt_compliance < 0.9:
+            recommendations.append("Review and improve robots.txt compliance - respect crawl delays")
+        
+        # Data extraction problems
+        if factors.data_extraction_accuracy < 0.7:
+            recommendations.append("Review CSS selectors and XPath expressions for data extraction")
+        
+        # Rate limiting issues
+        if factors.rate_limit_adherence < 0.9:
+            recommendations.append("Implement more conservative rate limiting to avoid being blocked")
+        
+        # Browser stability issues
+        if factors.browser_stability < 0.8:
+            recommendations.append("Consider restarting browser sessions more frequently")
+        
+        # Network resilience issues
+        if factors.network_resilience < 0.8:
+            recommendations.append("Implement better retry logic and network error handling")
+        
+        # Crawl efficiency issues
+        if factors.crawl_depth_efficiency < 0.6:
+            recommendations.append("Optimize crawl strategy - consider reducing depth or improving link filtering")
+        
+        # Data quality issues
+        if factors.structured_data_quality < 0.7:
+            recommendations.append("Improve structured data parsing and validation logic")
+        
+        return recommendations or ["Browser automation performance is satisfactory"]
+    
+    def get_crawl_risk_assessment(self) -> Dict[str, Any]:
+        """Get browser automation specific risk assessment."""
+        risks = []
+        risk_level = "low"
+        
+        stats = self.crawl_stats
+        
+        # Calculate risk metrics
+        if stats["total_pages_attempted"] > 0:
+            success_rate = stats["pages_loaded_successfully"] / stats["total_pages_attempted"]
+            if success_rate < 0.7:
+                risks.append("Low page load success rate may indicate blocking or network issues")
+                risk_level = "high"
+            elif success_rate < 0.9:
+                risks.append("Moderate page load issues detected")
+                risk_level = "medium"
+        
+        if stats["robots_violations"] > 0:
+            risks.append(f"{stats['robots_violations']} robots.txt violations detected")
+            risk_level = "medium"
+        
+        if stats["rate_limit_violations"] > 2:
+            risks.append("Multiple rate limit violations - risk of IP blocking")
+            risk_level = "high"
+        
+        if stats["browser_crashes"] > 1:
+            risks.append("Browser instability detected - consider session management improvements")
+            risk_level = "medium"
+        
+        extraction_rate = 0.0
+        if stats["extraction_attempts"] > 0:
+            extraction_rate = stats["successful_extractions"] / stats["extraction_attempts"]
+            if extraction_rate < 0.6:
+                risks.append("Low data extraction success rate")
+                risk_level = "high"
+        
+        return {
+            "risk_level": risk_level,
+            "risks": risks,
+            "crawl_stats": stats,
+            "extraction_success_rate": extraction_rate,
+            "recommendations": self.get_browser_recommendations()
+        }
+    
+    def estimate_extraction_confidence(self, 
+                                     extracted_data: Dict[str, Any],
+                                     expected_fields: List[str],
+                                     page_url: str) -> float:
+        """Estimate confidence for a specific data extraction."""
+        if not extracted_data or not expected_fields:
+            return 0.0
+        
+        # Calculate field coverage
+        extracted_fields = set(extracted_data.keys())
+        expected_fields_set = set(expected_fields)
+        
+        coverage = len(extracted_fields & expected_fields_set) / len(expected_fields_set)
+        
+        # Calculate data quality
+        non_empty_fields = sum(1 for value in extracted_data.values() 
+                             if value and str(value).strip())
+        data_quality = non_empty_fields / len(extracted_data) if extracted_data else 0.0
+        
+        # Calculate overall confidence
+        confidence = (coverage * 0.6 + data_quality * 0.4) * 100
+        
+        return max(0.0, min(100.0, confidence))
+    
+    def create_browser_factors_from_stats(self, 
+                                        task_progress: float = 0.0,
+                                        current_errors: int = 0,
+                                        pages_processed: int = 0,
+                                        successful_pages: int = 0,
+                                        successful_extractions: int = 0) -> BrowserScoreFactors:
+        """Create BrowserScoreFactors from current crawl statistics."""
+        
+        # Calculate rates
+        page_success_rate = successful_pages / pages_processed if pages_processed > 0 else 1.0
+        extraction_rate = successful_extractions / pages_processed if pages_processed > 0 else 1.0
+        error_rate = current_errors / max(pages_processed, 1)
+        
+        # Estimate other factors based on available data
+        robots_compliance = 1.0 - (self.crawl_stats["robots_violations"] / max(pages_processed, 1))
+        rate_adherence = 1.0 - (self.crawl_stats["rate_limit_violations"] / max(pages_processed, 1))
+        browser_stability = 1.0 - (self.crawl_stats["browser_crashes"] / max(pages_processed, 1))
+        network_resilience = 1.0 - (self.crawl_stats["network_errors"] / max(pages_processed, 1))
+        
+        return BrowserScoreFactors(
+            task_completion=task_progress,
+            error_rate=min(1.0, error_rate),
+            time_efficiency=1.0,  # Would need timing data
+            output_quality=extraction_rate,
+            uncertainty_level=0.1,  # Low uncertainty for automated tasks
+            page_load_success_rate=page_success_rate,
+            robots_txt_compliance=max(0.0, robots_compliance),
+            data_extraction_accuracy=extraction_rate,
+            crawl_depth_efficiency=1.0,  # Would need depth analysis
+            rate_limit_adherence=max(0.0, rate_adherence),
+            structured_data_quality=extraction_rate,  # Simplified
+            browser_stability=max(0.0, browser_stability),
+            network_resilience=max(0.0, network_resilience)
+        )

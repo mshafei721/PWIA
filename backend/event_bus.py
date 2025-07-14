@@ -2,9 +2,13 @@ import asyncio
 import logging
 from typing import Dict, List, Callable, Any, Optional, Set
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
-from backend.models import WebSocketMessage, WebSocketEventType
+from backend.models import (
+    WebSocketMessage, WebSocketEventType, BrowserStatus, CrawlProgress,
+    ExtractionResult, BrowserSession, BrowserPerformanceMetrics, 
+    BrowserWebSocketEvent, BrowserErrorEvent
+)
 from backend.websocket_manager import connection_manager
 
 logger = logging.getLogger(__name__)
@@ -130,7 +134,7 @@ class EventBus:
         event_data = {
             "progress": progress,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         if confidence is not None:
             event_data["confidence"] = confidence
@@ -148,7 +152,7 @@ class EventBus:
         event_data = {
             "tool_name": tool_name,
             "args": args,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         if result is not None:
@@ -157,6 +161,226 @@ class EventBus:
             event_data["error"] = error
             
         await self.emit_task_event(event_type, task_id, event_data)
+    
+    # Browser Automation Event Methods
+    
+    async def emit_browser_status_change(self, task_id: str, status: BrowserStatus, 
+                                       session_id: str = None, message: str = None):
+        """Emit browser status change event."""
+        await self.emit_task_event(
+            WebSocketEventType.TASK_UPDATED,
+            task_id,
+            {
+                "type": "browser_status",
+                "browser_status": status.value,
+                "session_id": session_id,
+                "message": message,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager for direct WebSocket delivery
+        await connection_manager.send_browser_status_update(task_id, status, session_id, message)
+    
+    async def emit_crawl_progress(self, task_id: str, progress: CrawlProgress):
+        """Emit crawling progress update."""
+        await self.emit_task_event(
+            WebSocketEventType.PROGRESS_UPDATE,
+            task_id,
+            {
+                "type": "crawl_progress",
+                "progress": progress.model_dump(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager
+        await connection_manager.send_crawl_progress_update(task_id, progress)
+    
+    async def emit_extraction_result(self, task_id: str, extraction: ExtractionResult):
+        """Emit data extraction result."""
+        await self.emit_task_event(
+            WebSocketEventType.TASK_UPDATED,
+            task_id,
+            {
+                "type": "extraction_result",
+                "extraction": extraction.model_dump(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager
+        await connection_manager.send_extraction_result(task_id, extraction)
+    
+    async def emit_browser_session_update(self, task_id: str, session: BrowserSession):
+        """Emit browser session update."""
+        await self.emit_task_event(
+            WebSocketEventType.TASK_UPDATED,
+            task_id,
+            {
+                "type": "browser_session",
+                "session": session.model_dump(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager
+        await connection_manager.send_browser_session_update(task_id, session)
+    
+    async def emit_performance_metrics(self, task_id: str, metrics: BrowserPerformanceMetrics):
+        """Emit browser performance metrics."""
+        await self.emit_task_event(
+            WebSocketEventType.TASK_UPDATED,
+            task_id,
+            {
+                "type": "performance_metrics",
+                "metrics": metrics.model_dump(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager
+        await connection_manager.send_performance_metrics(task_id, metrics)
+    
+    async def emit_browser_event(self, task_id: str, event: BrowserWebSocketEvent):
+        """Emit generic browser automation event."""
+        await self.emit_task_event(
+            WebSocketEventType.TASK_UPDATED,
+            task_id,
+            {
+                "type": "browser_event",
+                "event": event.model_dump(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager
+        await connection_manager.send_browser_event(task_id, event)
+    
+    async def emit_browser_error(self, task_id: str, error: BrowserErrorEvent):
+        """Emit browser automation error."""
+        await self.emit_task_event(
+            WebSocketEventType.TASK_FAILED,
+            task_id,
+            {
+                "type": "browser_error",
+                "error": error.model_dump(),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        # Also send via connection manager
+        await connection_manager.send_browser_error(task_id, error)
+    
+    async def emit_page_loaded(self, task_id: str, url: str, success: bool, 
+                             load_time: float = None, error_message: str = None):
+        """Emit page load event."""
+        event = BrowserWebSocketEvent(
+            event_type="page.loaded" if success else "page.load_failed",
+            session_id="system",  # Default session for page load events
+            task_id=task_id,
+            data={
+                "url": url,
+                "success": success,
+                "load_time": load_time,
+                "error_message": error_message
+            }
+        )
+        await self.emit_browser_event(task_id, event)
+    
+    async def emit_data_extracted(self, task_id: str, url: str, 
+                                fields_extracted: int, confidence_score: float,
+                                extracted_data: Dict[str, Any] = None):
+        """Emit data extraction event."""
+        event = BrowserWebSocketEvent(
+            event_type="data.extracted",
+            session_id="system",  # Default session for data extraction events
+            task_id=task_id,
+            data={
+                "url": url,
+                "fields_extracted": fields_extracted,
+                "confidence_score": confidence_score,
+                "extracted_data": extracted_data
+            }
+        )
+        await self.emit_browser_event(task_id, event)
+    
+    async def emit_crawl_started(self, task_id: str, urls: List[str], 
+                               max_depth: int, max_pages: int):
+        """Emit crawl started event."""
+        # Update browser status
+        await self.emit_browser_status_change(task_id, BrowserStatus.CRAWLING, 
+                                            message=f"Started crawling {len(urls)} URLs")
+        
+        # Send specific crawl started event
+        event = BrowserWebSocketEvent(
+            event_type="crawl.started",
+            session_id="system",  # Default session for crawl events
+            task_id=task_id,
+            data={
+                "urls": urls,
+                "max_depth": max_depth,
+                "max_pages": max_pages,
+                "start_time": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        await self.emit_browser_event(task_id, event)
+    
+    async def emit_crawl_completed(self, task_id: str, pages_crawled: int, 
+                                 data_extracted: int, duration_seconds: float):
+        """Emit crawl completed event."""
+        # Update browser status
+        await self.emit_browser_status_change(task_id, BrowserStatus.COMPLETED,
+                                            message=f"Crawled {pages_crawled} pages, extracted {data_extracted} items")
+        
+        # Send specific crawl completed event
+        event = BrowserWebSocketEvent(
+            event_type="crawl.completed",
+            session_id="system",  # Default session for crawl events
+            task_id=task_id,
+            data={
+                "pages_crawled": pages_crawled,
+                "data_extracted": data_extracted,
+                "duration_seconds": duration_seconds,
+                "completion_time": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        await self.emit_browser_event(task_id, event)
+    
+    async def emit_browser_launched(self, task_id: str, session_id: str, browser_type: str):
+        """Emit browser launched event."""
+        await self.emit_browser_status_change(task_id, BrowserStatus.LAUNCHING,
+                                            session_id=session_id,
+                                            message=f"Launched {browser_type} browser")
+        
+        event = BrowserWebSocketEvent(
+            event_type="browser.launched",
+            session_id=session_id,
+            task_id=task_id,
+            data={
+                "session_id": session_id,
+                "browser_type": browser_type,
+                "launch_time": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        await self.emit_browser_event(task_id, event)
+    
+    async def emit_browser_closed(self, task_id: str, session_id: str):
+        """Emit browser closed event."""
+        await self.emit_browser_status_change(task_id, BrowserStatus.IDLE,
+                                            session_id=session_id,
+                                            message="Browser session closed")
+        
+        event = BrowserWebSocketEvent(
+            event_type="browser.closed",
+            session_id=session_id,
+            task_id=task_id,
+            data={
+                "session_id": session_id,
+                "close_time": datetime.now(timezone.utc).isoformat()
+            }
+        )
+        await self.emit_browser_event(task_id, event)
     
     async def _broadcast_to_websockets(self, message: WebSocketMessage):
         """Send message to appropriate WebSocket clients"""

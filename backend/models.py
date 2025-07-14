@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 class TaskStatus(str, Enum):
@@ -50,8 +50,8 @@ class Task(BaseModel):
     description: str = Field(..., description="Task description")
     status: TaskStatus = TaskStatus.PENDING
     subtasks: List[TaskSection] = []
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     agent_id: Optional[str] = None
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Agent confidence score")
     
@@ -108,7 +108,7 @@ class Message(BaseModel):
     task_id: str
     type: MessageType
     content: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Optional[Dict[str, Any]] = None
     
     model_config = {"json_schema_extra": {
@@ -137,7 +137,7 @@ class Agent(BaseModel):
     status: AgentStatus = AgentStatus.IDLE
     current_task_id: Optional[str] = None
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
-    last_activity: datetime = Field(default_factory=datetime.utcnow)
+    last_activity: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     capabilities: List[str] = []
     metadata: Optional[Dict[str, Any]] = None
     
@@ -189,7 +189,7 @@ class WebSocketMessage(BaseModel):
     event_type: WebSocketEventType
     task_id: str
     data: Dict[str, Any]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     client_id: Optional[str] = None
     
     model_config = {"json_schema_extra": {
@@ -211,7 +211,7 @@ class TaskMessage(BaseModel):
     task_id: str
     type: str  # e.g., "automation_started", "workflow_completed", "workflow_error"
     data: Dict[str, Any]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     model_config = {"json_schema_extra": {
             "example": {
@@ -234,7 +234,7 @@ class ProgressUpdate(BaseModel):
     current_url: Optional[str] = None
     status: str = "running"
     completion_percentage: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     model_config = {"json_schema_extra": {
             "example": {
@@ -252,8 +252,8 @@ class ConnectionInfo(BaseModel):
     """Information about a WebSocket connection"""
     client_id: str
     task_id: str
-    connected_at: datetime = Field(default_factory=datetime.utcnow)
-    last_heartbeat: datetime = Field(default_factory=datetime.utcnow)
+    connected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_heartbeat: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_agent: Optional[str] = None
 
 # Browser Automation Models
@@ -286,8 +286,8 @@ class CrawlProgress(BaseModel):
     completion_percentage: float = 0.0
     crawl_depth: int = 0
     max_depth: int = 2
-    started_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     estimated_completion: Optional[datetime] = None
     
     model_config = {"json_schema_extra": {
@@ -320,7 +320,7 @@ class ExtractionResult(BaseModel):
     images: List[str] = []
     structured_data: Dict[str, Any] = {}
     metadata: Dict[str, Any] = {}
-    extraction_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    extraction_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     extraction_success: bool = True
     extraction_errors: List[str] = []
     confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
@@ -360,7 +360,7 @@ class BrowserPerformanceMetrics(BaseModel):
     average_page_load_time: float = 0.0  # seconds
     success_rate: float = 0.0  # percentage
     errors_per_hour: float = 0.0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     model_config = {"json_schema_extra": {
         "example": {
@@ -386,8 +386,8 @@ class BrowserSession(BaseModel):
     progress: CrawlProgress = Field(default_factory=lambda: CrawlProgress(session_id="", task_id=""))
     performance_metrics: Optional[BrowserPerformanceMetrics] = None
     results: List[ExtractionResult] = []
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
     
     model_config = {"json_schema_extra": {
@@ -419,7 +419,7 @@ class BrowserWebSocketEvent(BaseModel):
     session_id: str
     task_id: str
     data: Dict[str, Any]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     model_config = {"json_schema_extra": {
         "example": {
@@ -444,7 +444,7 @@ class BrowserErrorEvent(BaseModel):
     error_message: str
     url: Optional[str] = None
     stack_trace: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     recoverable: bool = True
     
     model_config = {"json_schema_extra": {

@@ -4,7 +4,7 @@ import re
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 from agent.llm_agent import LLMAgent, AgentConfig
 
@@ -43,6 +43,14 @@ class SubTask(BaseModel):
     dependencies: List[str] = []  # IDs of required subtasks
     outputs: List[str] = []  # Files or data produced
     notes: Optional[str] = None
+    
+    # Browser automation specific fields
+    task_type: str = "general"  # general, crawl, extract, analyze, export
+    urls: List[str] = []  # URLs to process for browser tasks
+    selectors: List[str] = []  # CSS/XPath selectors for extraction tasks
+    crawl_depth: int = 1  # Depth for crawling tasks
+    max_pages: int = 10  # Maximum pages to crawl
+    browser_config: Optional[Dict[str, Any]] = None  # Browser-specific settings
 
 
 class TaskPlanner:
@@ -374,3 +382,238 @@ class TaskPlanner:
         subtask_dir = workspace / subtask_id
         subtask_dir.mkdir(exist_ok=True)
         return subtask_dir
+    
+    # Browser Automation Specific Methods
+    
+    async def decompose_crawl_task(self, urls: List[str], context: PlanningContext, 
+                                 crawl_depth: int = 2, max_pages: int = 50) -> List[SubTask]:
+        """Decompose a crawling task into manageable subtasks."""
+        if not self.llm_agent:
+            agent_config = AgentConfig(
+                system_prompt="""You are a web crawling task planner. 
+                Break down web crawling tasks into logical phases:
+                1. URL validation and robots.txt checking
+                2. Site structure analysis
+                3. Crawling strategy development
+                4. Actual crawling with depth limits
+                5. Data extraction and processing
+                6. Results compilation and export
+                
+                Each subtask should respect rate limits and be efficient."""
+            )
+            self.llm_agent = LLMAgent(agent_config)
+        
+        # Create crawling-specific prompt
+        crawl_prompt = f"""
+        Crawling Task: {self.config.description}
+        Target URLs: {', '.join(urls[:5])}{'...' if len(urls) > 5 else ''}
+        Total URLs: {len(urls)}
+        Crawl Depth: {crawl_depth}
+        Max Pages: {max_pages}
+        
+        Break this down into crawling subtasks that:
+        1. Validate each URL and check robots.txt compliance
+        2. Analyze site structure and identify important pages
+        3. Crawl systematically with proper rate limiting
+        4. Extract relevant data from each page
+        5. Compile and export results
+        
+        Consider site-specific crawling strategies for different domains.
+        """
+        
+        # Get decomposition from LLM
+        response = await self.llm_agent.send_message(crawl_prompt)
+        
+        # Parse and create browser-specific subtasks
+        subtasks = self._parse_crawl_subtasks(response, urls, crawl_depth, max_pages)
+        
+        # Add to our list
+        for subtask in subtasks:
+            self.add_subtask(subtask)
+        
+        # Save plan
+        if self.config.auto_save:
+            self.generate_todo_file()
+        
+        return subtasks
+    
+    def _parse_crawl_subtasks(self, response: str, urls: List[str], 
+                            crawl_depth: int, max_pages: int) -> List[SubTask]:
+        """Parse LLM response into crawl-specific SubTask objects."""
+        subtasks = []
+        lines = response.strip().split('\n')
+        
+        # Group URLs by domain for efficient crawling
+        domains = {}
+        for url in urls:
+            try:
+                from urllib.parse import urlparse
+                domain = urlparse(url).netloc
+                if domain not in domains:
+                    domains[domain] = []
+                domains[domain].append(url)
+            except:
+                # Fallback for malformed URLs
+                if 'unknown' not in domains:
+                    domains['unknown'] = []
+                domains['unknown'].append(url)
+        
+        # Create initial validation subtask
+        self._subtask_counter += 1
+        validation_task = SubTask(
+            id=f"{self.config.task_id}-{self._subtask_counter:02d}",
+            title="URL Validation and Robots.txt Check",
+            description=f"Validate {len(urls)} URLs and check robots.txt compliance",
+            task_type="crawl",
+            urls=urls,
+            estimated_duration=5 + len(urls) // 10,  # Scale with URL count
+            priority="high"
+        )
+        subtasks.append(validation_task)
+        
+        # Create domain-specific crawling subtasks
+        for domain, domain_urls in domains.items():
+            pages_per_domain = min(max_pages // len(domains), len(domain_urls))
+            
+            self._subtask_counter += 1
+            crawl_task = SubTask(
+                id=f"{self.config.task_id}-{self._subtask_counter:02d}",
+                title=f"Crawl {domain}",
+                description=f"Crawl {len(domain_urls)} URLs from {domain} with depth {crawl_depth}",
+                task_type="crawl",
+                urls=domain_urls,
+                crawl_depth=crawl_depth,
+                max_pages=pages_per_domain,
+                estimated_duration=10 + pages_per_domain * 2,  # Scale with page count
+                priority="medium",
+                dependencies=[validation_task.id]
+            )
+            subtasks.append(crawl_task)
+        
+        # Create data extraction subtask
+        self._subtask_counter += 1
+        extraction_task = SubTask(
+            id=f"{self.config.task_id}-{self._subtask_counter:02d}",
+            title="Data Extraction and Processing",
+            description="Extract structured data from crawled pages",
+            task_type="extract",
+            estimated_duration=15 + max_pages // 5,
+            priority="medium",
+            dependencies=[task.id for task in subtasks if task.task_type == "crawl"]
+        )
+        subtasks.append(extraction_task)
+        
+        # Create export subtask
+        self._subtask_counter += 1
+        export_task = SubTask(
+            id=f"{self.config.task_id}-{self._subtask_counter:02d}",
+            title="Results Compilation and Export",
+            description="Compile extracted data and export in requested format",
+            task_type="export",
+            estimated_duration=10,
+            priority="low",
+            dependencies=[extraction_task.id]
+        )
+        subtasks.append(export_task)
+        
+        return subtasks
+    
+    def create_extraction_subtask(self, url: str, selectors: List[str], 
+                                title: str = None) -> SubTask:
+        """Create a data extraction subtask for a specific URL."""
+        self._subtask_counter += 1
+        
+        if not title:
+            from urllib.parse import urlparse
+            domain = urlparse(url).netloc
+            title = f"Extract data from {domain}"
+        
+        return SubTask(
+            id=f"{self.config.task_id}-{self._subtask_counter:02d}",
+            title=title,
+            description=f"Extract data using {len(selectors)} selectors from {url}",
+            task_type="extract",
+            urls=[url],
+            selectors=selectors,
+            estimated_duration=5 + len(selectors) * 2,
+            priority="medium"
+        )
+    
+    def create_analysis_subtask(self, data_source: str, analysis_type: str = "content") -> SubTask:
+        """Create a data analysis subtask."""
+        self._subtask_counter += 1
+        
+        return SubTask(
+            id=f"{self.config.task_id}-{self._subtask_counter:02d}",
+            title=f"Analyze {analysis_type} from {data_source}",
+            description=f"Perform {analysis_type} analysis on data from {data_source}",
+            task_type="analyze",
+            estimated_duration=20,
+            priority="medium"
+        )
+    
+    def get_browser_subtasks(self) -> List[SubTask]:
+        """Get all browser automation related subtasks."""
+        return [
+            subtask for subtask in self.subtasks 
+            if subtask.task_type in ["crawl", "extract", "analyze", "export"]
+        ]
+    
+    def get_next_crawl_subtask(self) -> Optional[SubTask]:
+        """Get the next crawling subtask to execute."""
+        for subtask in self.subtasks:
+            if (subtask.task_type == "crawl" and 
+                subtask.status == "pending" and 
+                self._dependencies_satisfied(subtask)):
+                return subtask
+        return None
+    
+    def get_next_extraction_subtask(self) -> Optional[SubTask]:
+        """Get the next extraction subtask to execute."""
+        for subtask in self.subtasks:
+            if (subtask.task_type == "extract" and 
+                subtask.status == "pending" and 
+                self._dependencies_satisfied(subtask)):
+                return subtask
+        return None
+    
+    def _dependencies_satisfied(self, subtask: SubTask) -> bool:
+        """Check if all dependencies for a subtask are satisfied."""
+        if not subtask.dependencies:
+            return True
+        
+        for dep_id in subtask.dependencies:
+            dep_task = self.get_subtask(dep_id)
+            if not dep_task or dep_task.status != "completed":
+                return False
+        
+        return True
+    
+    def estimate_total_crawl_time(self) -> int:
+        """Estimate total time needed for all crawling subtasks."""
+        crawl_tasks = [s for s in self.subtasks if s.task_type == "crawl"]
+        return sum(task.estimated_duration for task in crawl_tasks)
+    
+    def get_crawl_progress_summary(self) -> Dict[str, Any]:
+        """Get a summary of crawling progress."""
+        browser_tasks = self.get_browser_subtasks()
+        
+        if not browser_tasks:
+            return {"total": 0, "completed": 0, "progress": 0.0}
+        
+        completed = len([t for t in browser_tasks if t.status == "completed"])
+        in_progress = len([t for t in browser_tasks if t.status == "in_progress"])
+        
+        total_urls = sum(len(t.urls) for t in browser_tasks if t.urls)
+        
+        return {
+            "total_tasks": len(browser_tasks),
+            "completed_tasks": completed,
+            "in_progress_tasks": in_progress,
+            "total_urls": total_urls,
+            "progress_percent": (completed / len(browser_tasks)) * 100 if browser_tasks else 0.0,
+            "estimated_remaining_time": sum(
+                t.estimated_duration for t in browser_tasks 
+                if t.status in ["pending", "in_progress"]
+            )
+        }
