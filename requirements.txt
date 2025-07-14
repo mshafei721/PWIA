@@ -48,6 +48,7 @@ celery==5.3.4
 
 # Async utilities
 asyncio-mqtt==0.13.0
+aiofiles==23.2.0
 
 # File system utilities
 watchdog==3.0.0
@@ -66,7 +67,7 @@ click==8.1.7
 pillow==10.1.0
 
 # Crypto utilities
-cryptography==41.0.8
+cryptography==43.0.3
 
 # Memory monitoring
 psutil==5.9.6

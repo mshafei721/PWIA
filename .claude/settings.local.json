@@ -55,7 +55,10 @@
       "Bash(bash:*)",
       "mcp__memory__search_nodes",
       "mcp__memory__read_graph",
-      "mcp__memory__create_entities"
+      "mcp__memory__create_entities",
+      "WebFetch(domain:docs.stagehand.dev)",
+      "mcp__zen__analyze",
+      "Bash(playwright install:*)"
     ],
     "deny": []
   }
