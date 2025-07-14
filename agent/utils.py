@@ -495,3 +495,139 @@ def ensure_directory(path: Union[str, Path], is_file_path: bool = False):
         directory = path
     
     directory.mkdir(parents=True, exist_ok=True)
+
+
+def retry_with_backoff(
+    max_attempts: int = 3,
+    initial_delay: float = 1.0,
+    backoff_multiplier: float = 2.0,
+    exceptions: tuple = (Exception,),
+    jitter: bool = True
+):
+    """
+    Decorator for functions with exponential backoff retry logic.
+    
+    Args:
+        max_attempts: Maximum number of retry attempts
+        initial_delay: Initial delay between retries in seconds
+        backoff_multiplier: Multiplier for exponential backoff
+        exceptions: Tuple of exception types to catch and retry on
+        jitter: Add random jitter to delay to prevent thundering herd
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import random
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    
+                    if attempt < max_attempts - 1:  # Don't delay after last attempt
+                        # Calculate delay with exponential backoff
+                        delay = initial_delay * (backoff_multiplier ** attempt)
+                        
+                        # Add jitter to prevent thundering herd
+                        if jitter:
+                            delay += random.uniform(0, delay * 0.1)
+                        
+                        time.sleep(delay)
+                    
+                    # Log retry attempt
+                    logger = get_logger(func.__module__)
+                    logger.warning(
+                        f"Retry {attempt + 1}/{max_attempts} for {func.__name__}: {e}",
+                        extra={
+                            "attempt": attempt + 1, 
+                            "max_attempts": max_attempts,
+                            "delay": delay if attempt < max_attempts - 1 else 0,
+                            "function": func.__name__,
+                            "exception": str(e)
+                        }
+                    )
+            
+            # All attempts failed
+            logger = get_logger(func.__module__)
+            logger.error(
+                f"All {max_attempts} attempts failed for {func.__name__}: {last_exception}",
+                extra={
+                    "function": func.__name__,
+                    "max_attempts": max_attempts,
+                    "final_exception": str(last_exception)
+                }
+            )
+            raise last_exception
+        
+        return wrapper
+    return decorator
+
+
+async def retry_with_backoff_async(
+    max_attempts: int = 3,
+    initial_delay: float = 1.0,
+    backoff_multiplier: float = 2.0,
+    exceptions: tuple = (Exception,),
+    jitter: bool = True
+):
+    """
+    Async decorator for functions with exponential backoff retry logic.
+    
+    Args:
+        max_attempts: Maximum number of retry attempts
+        initial_delay: Initial delay between retries in seconds
+        backoff_multiplier: Multiplier for exponential backoff
+        exceptions: Tuple of exception types to catch and retry on
+        jitter: Add random jitter to delay to prevent thundering herd
+    """
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            import random
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    return await func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    
+                    if attempt < max_attempts - 1:  # Don't delay after last attempt
+                        # Calculate delay with exponential backoff
+                        delay = initial_delay * (backoff_multiplier ** attempt)
+                        
+                        # Add jitter to prevent thundering herd
+                        if jitter:
+                            delay += random.uniform(0, delay * 0.1)
+                        
+                        await asyncio.sleep(delay)
+                    
+                    # Log retry attempt
+                    logger = get_logger(func.__module__)
+                    logger.warning(
+                        f"Async retry {attempt + 1}/{max_attempts} for {func.__name__}: {e}",
+                        extra={
+                            "attempt": attempt + 1, 
+                            "max_attempts": max_attempts,
+                            "delay": delay if attempt < max_attempts - 1 else 0,
+                            "function": func.__name__,
+                            "exception": str(e)
+                        }
+                    )
+            
+            # All attempts failed
+            logger = get_logger(func.__module__)
+            logger.error(
+                f"All {max_attempts} async attempts failed for {func.__name__}: {last_exception}",
+                extra={
+                    "function": func.__name__,
+                    "max_attempts": max_attempts,
+                    "final_exception": str(last_exception)
+                }
+            )
+            raise last_exception
+        
+        return wrapper
+    return decorator

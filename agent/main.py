@@ -13,7 +13,11 @@ from rich.table import Table
 
 
 # CLI app instance
-app = typer.Typer(help="PWIA Agent Control CLI")
+app = typer.Typer(
+    help="PWIA Agent Control CLI",
+    no_args_is_help=True,
+    add_completion=False
+)
 console = Console()
 
 
@@ -292,6 +296,235 @@ def resume():
         console.print("[green]Agent resumed successfully![/green]")
     else:
         console.print("[red]Failed to resume agent![/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def crawl(
+    urls: str = typer.Option(..., help="Comma-separated URLs to crawl"),
+    task_id: str = typer.Option(..., help="Task ID for this crawl operation"),
+    max_depth: int = typer.Option(2, help="Maximum crawl depth"),
+    max_pages: int = typer.Option(50, help="Maximum pages to crawl"),
+    wait_for_completion: bool = typer.Option(True, help="Wait for crawl completion"),
+    export_format: str = typer.Option("json", help="Export format (json, csv, markdown)")
+):
+    """Start a web crawling operation."""
+    try:
+        # Import here to avoid circular imports
+        from agent.browser_automation import BrowserAutomation, AutomationConfig
+        from agent.memory import AgentMemory
+        
+        # Parse URLs
+        url_list = [url.strip() for url in urls.split(",")]
+        
+        # Initialize browser automation
+        config = AutomationConfig(
+            workflow_settings={
+                "auto_start": True,
+                "auto_export": True,
+                "export_format": export_format
+            }
+        )
+        
+        memory = AgentMemory()
+        automation = BrowserAutomation(config=config, memory=memory)
+        
+        console.print(f"[blue]Starting crawl for {len(url_list)} URLs with task ID: {task_id}[/blue]")
+        console.print(f"[blue]Max depth: {max_depth}, Max pages: {max_pages}[/blue]")
+        
+        # Start crawling workflow
+        import asyncio
+        
+        async def run_crawl():
+            try:
+                # Start the automation session
+                session_id = await automation.start_session(
+                    task_id=task_id,
+                    initial_urls=url_list,
+                    max_depth=max_depth,
+                    max_pages=max_pages
+                )
+                
+                console.print(f"[green]Crawl session started: {session_id}[/green]")
+                
+                if wait_for_completion:
+                    # Execute and wait for completion
+                    result = await automation.execute_crawl(session_id, wait_for_completion=True)
+                    
+                    if result.get("success"):
+                        console.print(f"[green]Crawl completed successfully![/green]")
+                        console.print(f"[blue]Pages crawled: {result.get('pages_crawled', 0)}[/blue]")
+                        console.print(f"[blue]Data extracted: {result.get('data_extracted', 0)} items[/blue]")
+                        
+                        # Process and export results
+                        export_result = await automation.process_results(session_id, export_format)
+                        if export_result.get("success"):
+                            console.print(f"[green]Results exported to: {export_result.get('export_path')}[/green]")
+                    else:
+                        console.print(f"[red]Crawl failed: {result.get('error', 'Unknown error')}[/red]")
+                        raise typer.Exit(1)
+                else:
+                    console.print(f"[green]Crawl started in background. Use 'browser-status {session_id}' to check progress.[/green]")
+                
+            except Exception as e:
+                console.print(f"[red]Crawl error: {e}[/red]")
+                raise typer.Exit(1)
+            finally:
+                await automation.shutdown()
+        
+        asyncio.run(run_crawl())
+        
+    except Exception as e:
+        console.print(f"[red]Failed to start crawl: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def extract(
+    url: str = typer.Option(..., help="URL to extract data from"),
+    task_id: str = typer.Option(..., help="Task ID for this extraction"),
+    selectors: str = typer.Option("", help="CSS selectors to extract (comma-separated)"),
+    extract_links: bool = typer.Option(True, help="Extract links from the page"),
+    extract_text: bool = typer.Option(True, help="Extract text content"),
+    extract_structured: bool = typer.Option(True, help="Extract structured data"),
+    export_format: str = typer.Option("json", help="Export format (json, csv, markdown)")
+):
+    """Extract data from a single URL."""
+    try:
+        # Import here to avoid circular imports
+        from agent.browser_automation import BrowserAutomation, AutomationConfig
+        from agent.memory import AgentMemory
+        
+        # Parse selectors
+        selector_list = [s.strip() for s in selectors.split(",") if s.strip()]
+        
+        # Initialize browser automation
+        config = AutomationConfig(
+            workflow_settings={
+                "auto_start": True,
+                "auto_export": True,
+                "export_format": export_format
+            }
+        )
+        
+        memory = AgentMemory()
+        automation = BrowserAutomation(config=config, memory=memory)
+        
+        console.print(f"[blue]Extracting data from: {url}[/blue]")
+        console.print(f"[blue]Task ID: {task_id}[/blue]")
+        
+        # Start extraction workflow
+        import asyncio
+        
+        async def run_extraction():
+            try:
+                # Start the automation session for single URL extraction
+                session_id = await automation.start_session(
+                    task_id=task_id,
+                    initial_urls=[url],
+                    max_depth=1,  # Single page extraction
+                    max_pages=1
+                )
+                
+                console.print(f"[green]Extraction session started: {session_id}[/green]")
+                
+                # Execute extraction
+                result = await automation.execute_crawl(session_id, wait_for_completion=True)
+                
+                if result.get("success"):
+                    console.print(f"[green]Data extraction completed successfully![/green]")
+                    console.print(f"[blue]Data extracted: {result.get('data_extracted', 0)} items[/blue]")
+                    
+                    # Process and export results
+                    export_result = await automation.process_results(session_id, export_format)
+                    if export_result.get("success"):
+                        console.print(f"[green]Results exported to: {export_result.get('export_path')}[/green]")
+                else:
+                    console.print(f"[red]Extraction failed: {result.get('error', 'Unknown error')}[/red]")
+                    raise typer.Exit(1)
+                    
+            except Exception as e:
+                console.print(f"[red]Extraction error: {e}[/red]")
+                raise typer.Exit(1)
+            finally:
+                await automation.shutdown()
+        
+        asyncio.run(run_extraction())
+        
+    except Exception as e:
+        console.print(f"[red]Failed to extract data: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="browser-status")
+def browser_status(
+    session_id: str = typer.Option("", help="Session ID to check (empty for all)"),
+    detailed: bool = typer.Option(False, help="Show detailed status information")
+):
+    """Check browser automation status."""
+    try:
+        # Import here to avoid circular imports
+        from agent.browser_automation import BrowserAutomation
+        from agent.memory import AgentMemory
+        
+        memory = AgentMemory()
+        automation = BrowserAutomation(memory=memory)
+        
+        import asyncio
+        
+        async def check_status():
+            try:
+                if session_id:
+                    # Check specific session
+                    status = await automation.get_workflow_status(session_id)
+                    
+                    if status:
+                        console.print(f"[blue]Session: {session_id}[/blue]")
+                        console.print(f"[blue]Status: {status.get('status', 'unknown')}[/blue]")
+                        console.print(f"[blue]Progress: {status.get('progress', 0):.1f}%[/blue]")
+                        console.print(f"[blue]URLs Processed: {status.get('urls_processed', 0)}/{status.get('urls_total', 0)}[/blue]")
+                        
+                        if detailed:
+                            console.print(f"[blue]Current URL: {status.get('current_url', 'None')}[/blue]")
+                            console.print(f"[blue]Started: {status.get('started_at', 'Unknown')}[/blue]")
+                            console.print(f"[blue]Performance: {status.get('performance_metrics', {})}[/blue]")
+                    else:
+                        console.print(f"[red]Session not found: {session_id}[/red]")
+                        raise typer.Exit(1)
+                else:
+                    # List all active workflows
+                    workflows = await automation.list_workflows()
+                    
+                    if workflows:
+                        table = Table(title="Active Browser Automation Workflows")
+                        table.add_column("Session ID", style="cyan")
+                        table.add_column("Status", style="green")
+                        table.add_column("Progress", style="blue")
+                        table.add_column("URLs", style="yellow")
+                        
+                        for workflow in workflows:
+                            progress = f"{workflow.get('progress', 0):.1f}%"
+                            urls = f"{workflow.get('urls_processed', 0)}/{workflow.get('urls_total', 0)}"
+                            
+                            table.add_row(
+                                workflow.get('session_id', 'N/A'),
+                                workflow.get('status', 'unknown'),
+                                progress,
+                                urls
+                            )
+                        
+                        console.print(table)
+                    else:
+                        console.print("[yellow]No active browser automation workflows found.[/yellow]")
+                        
+            except Exception as e:
+                console.print(f"[red]Status check error: {e}[/red]")
+                raise typer.Exit(1)
+        
+        asyncio.run(check_status())
+        
+    except Exception as e:
+        console.print(f"[red]Failed to check browser status: {e}[/red]")
         raise typer.Exit(1)
 
 

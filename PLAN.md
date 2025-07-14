@@ -92,7 +92,7 @@ PWIA/
 - [ ] Prompt: "Write tests/agent/test_scraper.py covering all extraction methods, edge cases, and malformed HTML handling"
 
 **Integration Layer Development**
-- [ ] Prompt: "Create agent/browser_automation.py integrating BrowserManager, WebCrawler, and DataScraper classes"
+- [x] Prompt: "Create agent/browser_automation.py integrating BrowserManager, WebCrawler, and DataScraper classes"
 - [ ] Prompt: "Implement BrowserAutomation.automated_crawl() orchestrating full crawl workflow with error recovery"
 - [ ] Prompt: "Add WebSocket status broadcasting for real-time browser operation updates"
 - [ ] Prompt: "Write tests/agent/test_browser_automation.py for end-to-end workflow testing"

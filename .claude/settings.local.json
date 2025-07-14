@@ -61,7 +61,8 @@
       "Bash(playwright install:*)",
       "mcp__serena__summarize_changes",
       "Bash(pip show:*)",
-      "mcp__serena__switch_modes"
+      "mcp__serena__switch_modes",
+      "mcp__serena__think_about_task_adherence"
     ],
     "deny": []
   }

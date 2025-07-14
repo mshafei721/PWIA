@@ -206,6 +206,48 @@ class WebSocketMessage(BaseModel):
             }}
         }
 
+class TaskMessage(BaseModel):
+    """Message for task-specific updates through WebSocket"""
+    task_id: str
+    type: str  # e.g., "automation_started", "workflow_completed", "workflow_error"
+    data: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = {"json_schema_extra": {
+            "example": {
+                "task_id": "task_001",
+                "type": "automation_started",
+                "data": {
+                    "workflow_id": "wf_123",
+                    "session_id": "sess_456",
+                    "initial_urls": ["https://example.com"]
+                },
+                "timestamp": "2024-01-13T10:30:00Z"
+            }}
+        }
+
+class ProgressUpdate(BaseModel):
+    """Progress update for browser automation tasks"""
+    task_id: str
+    urls_processed: int = 0
+    urls_total: int = 0
+    current_url: Optional[str] = None
+    status: str = "running"
+    completion_percentage: float = 0.0
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = {"json_schema_extra": {
+            "example": {
+                "task_id": "task_001",
+                "urls_processed": 5,
+                "urls_total": 10,
+                "current_url": "https://example.com/page5",
+                "status": "running",
+                "completion_percentage": 50.0,
+                "timestamp": "2024-01-13T10:35:00Z"
+            }}
+        }
+
 class ConnectionInfo(BaseModel):
     """Information about a WebSocket connection"""
     client_id: str
@@ -213,3 +255,207 @@ class ConnectionInfo(BaseModel):
     connected_at: datetime = Field(default_factory=datetime.utcnow)
     last_heartbeat: datetime = Field(default_factory=datetime.utcnow)
     user_agent: Optional[str] = None
+
+# Browser Automation Models
+
+class BrowserStatus(str, Enum):
+    """Browser automation status enumeration"""
+    IDLE = "idle"
+    LAUNCHING = "launching"
+    READY = "ready"
+    CRAWLING = "crawling"
+    EXTRACTING = "extracting"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    PAUSED = "paused"
+    ERROR = "error"
+    SHUTDOWN = "shutdown"
+
+class CrawlProgress(BaseModel):
+    """Progress information for web crawling operations"""
+    session_id: str
+    task_id: str
+    status: BrowserStatus = BrowserStatus.IDLE
+    current_url: Optional[str] = None
+    urls_discovered: int = 0
+    urls_processed: int = 0
+    urls_total: int = 0
+    pages_crawled: int = 0
+    data_extracted: int = 0
+    errors_encountered: int = 0
+    completion_percentage: float = 0.0
+    crawl_depth: int = 0
+    max_depth: int = 2
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    estimated_completion: Optional[datetime] = None
+    
+    model_config = {"json_schema_extra": {
+        "example": {
+            "session_id": "sess_12345",
+            "task_id": "task_001",
+            "status": "crawling",
+            "current_url": "https://example.com/page2",
+            "urls_discovered": 25,
+            "urls_processed": 8,
+            "urls_total": 50,
+            "pages_crawled": 8,
+            "data_extracted": 45,
+            "errors_encountered": 1,
+            "completion_percentage": 16.0,
+            "crawl_depth": 2,
+            "max_depth": 3,
+            "started_at": "2024-01-13T10:30:00Z",
+            "updated_at": "2024-01-13T10:45:00Z",
+            "estimated_completion": "2024-01-13T11:15:00Z"
+        }
+    }}
+
+class ExtractionResult(BaseModel):
+    """Result of data extraction from a webpage"""
+    url: str
+    title: Optional[str] = None
+    text_content: Optional[str] = None
+    links: List[str] = []
+    images: List[str] = []
+    structured_data: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = {}
+    extraction_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    extraction_success: bool = True
+    extraction_errors: List[str] = []
+    confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    
+    model_config = {"json_schema_extra": {
+        "example": {
+            "url": "https://example.com/article",
+            "title": "Example Article Title",
+            "text_content": "This is the main content of the article...",
+            "links": ["https://example.com/link1", "https://example.com/link2"],
+            "images": ["https://example.com/image1.jpg"],
+            "structured_data": {
+                "type": "article",
+                "author": "John Doe",
+                "published": "2024-01-13",
+                "category": "technology"
+            },
+            "metadata": {
+                "word_count": 1250,
+                "reading_time": "5 minutes",
+                "language": "en"
+            },
+            "extraction_timestamp": "2024-01-13T10:30:00Z",
+            "extraction_success": True,
+            "extraction_errors": [],
+            "confidence_score": 0.95
+        }
+    }}
+
+class BrowserPerformanceMetrics(BaseModel):
+    """Performance metrics for browser automation"""
+    session_id: str
+    cpu_usage: float = 0.0  # Percentage
+    memory_usage: float = 0.0  # MB
+    network_requests: int = 0
+    pages_per_minute: float = 0.0
+    average_page_load_time: float = 0.0  # seconds
+    success_rate: float = 0.0  # percentage
+    errors_per_hour: float = 0.0
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = {"json_schema_extra": {
+        "example": {
+            "session_id": "sess_12345",
+            "cpu_usage": 45.2,
+            "memory_usage": 512.8,
+            "network_requests": 150,
+            "pages_per_minute": 2.5,
+            "average_page_load_time": 3.2,
+            "success_rate": 94.5,
+            "errors_per_hour": 0.8,
+            "timestamp": "2024-01-13T10:30:00Z"
+        }
+    }}
+
+class BrowserSession(BaseModel):
+    """Browser automation session information"""
+    session_id: str
+    task_id: str
+    status: BrowserStatus = BrowserStatus.IDLE
+    initial_urls: List[str] = []
+    crawl_config: Dict[str, Any] = {}
+    progress: CrawlProgress = Field(default_factory=lambda: CrawlProgress(session_id="", task_id=""))
+    performance_metrics: Optional[BrowserPerformanceMetrics] = None
+    results: List[ExtractionResult] = []
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    
+    model_config = {"json_schema_extra": {
+        "example": {
+            "session_id": "sess_12345",
+            "task_id": "task_001",
+            "status": "crawling",
+            "initial_urls": ["https://example.com", "https://test.com"],
+            "crawl_config": {
+                "max_depth": 3,
+                "max_pages": 50,
+                "respect_robots": True,
+                "delay": 1.0
+            },
+            "progress": {},
+            "performance_metrics": {},
+            "results": [],
+            "created_at": "2024-01-13T10:30:00Z",
+            "updated_at": "2024-01-13T10:45:00Z",
+            "completed_at": None
+        }
+    }}
+
+# Browser WebSocket Event Models
+
+class BrowserWebSocketEvent(BaseModel):
+    """WebSocket event for browser automation updates"""
+    event_type: str  # e.g., "browser.started", "page.loaded", "data.extracted"
+    session_id: str
+    task_id: str
+    data: Dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    model_config = {"json_schema_extra": {
+        "example": {
+            "event_type": "page.loaded",
+            "session_id": "sess_12345",
+            "task_id": "task_001",
+            "data": {
+                "url": "https://example.com/page1",
+                "title": "Example Page",
+                "load_time": 2.3,
+                "status_code": 200
+            },
+            "timestamp": "2024-01-13T10:30:00Z"
+        }
+    }}
+
+class BrowserErrorEvent(BaseModel):
+    """Error event for browser automation failures"""
+    session_id: str
+    task_id: str
+    error_type: str
+    error_message: str
+    url: Optional[str] = None
+    stack_trace: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    recoverable: bool = True
+    
+    model_config = {"json_schema_extra": {
+        "example": {
+            "session_id": "sess_12345",
+            "task_id": "task_001",
+            "error_type": "TimeoutError",
+            "error_message": "Page load timeout after 30 seconds",
+            "url": "https://example.com/slow-page",
+            "stack_trace": "Traceback (most recent call last)...",
+            "timestamp": "2024-01-13T10:30:00Z",
+            "recoverable": True
+        }
+    }}
