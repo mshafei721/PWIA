@@ -58,7 +58,9 @@
       "mcp__memory__create_entities",
       "WebFetch(domain:docs.stagehand.dev)",
       "mcp__zen__analyze",
-      "Bash(playwright install:*)"
+      "Bash(playwright install:*)",
+      "mcp__serena__summarize_changes",
+      "Bash(pip show:*)"
     ],
     "deny": []
   }
