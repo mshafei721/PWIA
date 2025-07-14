@@ -30,11 +30,11 @@
 - [x] Prompt: "Create agent/scraper.py with DataScraper class implementing CSS selector and XPath-based data extraction"
 - [x] Prompt: "Implement DataScraper methods: extract_data(), parse_elements(), get_text(), get_attributes() with BeautifulSoup integration"
 - [x] Prompt: "Add structured data extraction with support for JSON-LD, microdata, and RDFa parsing"
-- [ ] Prompt: "Create tests/agent/test_scraper.py covering data extraction accuracy, selector handling, and structured data parsing"
-- [ ] Prompt: "Create agent/integration.py with IntegrationLayer class orchestrating browser, crawler, and scraper components"
-- [ ] Prompt: "Implement IntegrationLayer methods: execute_task(), coordinate_components(), handle_failures() with error recovery"
-- [ ] Prompt: "Add session management and state persistence for long-running crawling operations"
-- [ ] Prompt: "Create tests/agent/test_integration.py covering component coordination, error handling, and session management"
+- [x] Prompt: "Create tests/agent/test_scraper.py covering data extraction accuracy, selector handling, and structured data parsing"
+- [x] Prompt: "Create agent/integration.py with IntegrationLayer class orchestrating browser, crawler, and scraper components"
+- [x] Prompt: "Implement IntegrationLayer methods: execute_task(), coordinate_components(), handle_failures() with error recovery"
+- [x] Prompt: "Add session management and state persistence for long-running crawling operations"
+- [x] Prompt: "Create tests/agent/test_integration.py covering component coordination, error handling, and session management"
 
 ## Phase 4: System Integration & Optimization (Steps 25-32)
 

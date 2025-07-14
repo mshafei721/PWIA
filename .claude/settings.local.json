@@ -60,7 +60,8 @@
       "mcp__zen__analyze",
       "Bash(playwright install:*)",
       "mcp__serena__summarize_changes",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "mcp__serena__switch_modes"
     ],
     "deny": []
   }
